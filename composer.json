@@ -1,0 +1,56 @@
+{
+  "name": "smart-dato/labelary",
+  "description": "A http client to make working with Labelary easier in Laravel",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "role": "Developer",
+      "name": "SmartDato",
+      "email": "info@smart-dato.com",
+      "homepage": "https://smart-dato.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "SmartDato\\Labelary\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "SmartDato\\Labelary\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "SmartDato\\Labelary\\Providers\\LabelaryServiceProvider"
+      ],
+      "aliases": {
+        "Labelary": "SmartDato\\Labelary\\Facades\\Labelary"
+      }
+    }
+  },
+  "require": {
+    "php": "^8.0.2",
+    "guzzlehttp/guzzle": "^7.5",
+    "illuminate/support": "^9.24"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true,
+    "preferred-install": "dist",
+    "optimize-autoloader": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "require-dev": {
+    "laravel/pint": "^1.1",
+    "orchestra/testbench": "^7.6",
+    "pestphp/pest": "^1.21",
+    "phpstan/phpstan": "^1.8",
+    "phpunit/phpunit": "^9.5"
+  }
+}
