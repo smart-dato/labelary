@@ -19,13 +19,13 @@ class Labelary
 
     private int $height;
 
-    private int $index;
+    private ?int $index;
 
     private static ?Labelary $instance = null;
 
     public static function getInstance(): Labelary
     {
-        if (! self::$instance) {
+        if (!self::$instance) {
             self::$instance = new self();
         }
 
@@ -53,7 +53,7 @@ class Labelary
      * Valid values are "6dpmm", "8dpmm", "12dpmm", and "24dpmm". See your printer's documentation for more information.
      *
      */
-    public function __construct(int $width = 4, int $height = 6, int $index = 0, string $dpmm = null)
+    public function __construct(int $width = 4, int $height = 6, ?int $index = null, string $dpmm = null)
     {
         $this->width = $width;
         $this->height = $height;
@@ -72,13 +72,15 @@ class Labelary
     {
         $instance = self::getInstance();
 
-        $url = "{$instance->dpmm}/labels/{$instance->width}x{$instance->height}/{$instance->index}/";
-
+        $url = "{$instance->dpmm}/labels/{$instance->width}x{$instance->height}";
+        if ($instance->index) {
+            $url .= "/{$instance->index}/";
+        }
         return self::getInstance()->request($url, $zpl, $type ?? LabelaryType::PNG);
     }
 
     /**
-     * @param string $zpl
+     * @param  string  $zpl
      * @return string|null
      */
     public static function convertToPdf(string $zpl): ?string
@@ -87,7 +89,7 @@ class Labelary
     }
 
     /**
-     * @param string $zpl
+     * @param  string  $zpl
      * @return string|null
      */
     public static function convertToPng(string $zpl): ?string
@@ -96,9 +98,9 @@ class Labelary
     }
 
     /**
-     * @param string $url
-     * @param string $zpl
-     * @param string $type
+     * @param  string  $url
+     * @param  string  $zpl
+     * @param  string  $type
      * @return string|null
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
@@ -120,7 +122,7 @@ class Labelary
     }
 
     /**
-     * @param int $width
+     * @param  int  $width
      * @return Labelary
      */
     public function setWidth(int $width): Labelary
@@ -131,7 +133,7 @@ class Labelary
     }
 
     /**
-     * @param string $dpmm
+     * @param  string  $dpmm
      * @return Labelary
      */
     public function setDpmm(string $dpmm): Labelary
@@ -142,7 +144,7 @@ class Labelary
     }
 
     /**
-     * @param int $height
+     * @param  int  $height
      * @return Labelary
      */
     public function setHeight(int $height): Labelary
@@ -153,10 +155,10 @@ class Labelary
     }
 
     /**
-     * @param int $index
+     * @param ?int  $index
      * @return Labelary
      */
-    public function setIndex(int $index): Labelary
+    public function setIndex(?int $index): Labelary
     {
         $this->index = $index;
 
