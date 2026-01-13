@@ -26,6 +26,13 @@ class LabelaryServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        $this->publishes([
+            __DIR__.'/../../config/labelary.php' => config_path('labelary.php'),
+        ], 'labelary-config');
+
+        $this->mergeConfigFrom(
+            __DIR__.'/../../config/labelary.php',
+            'labelary'
+        );
     }
 }
