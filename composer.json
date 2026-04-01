@@ -1,81 +1,81 @@
 {
-  "name": "smart-dato/labelary",
-  "description": "A http client to make working with Labelary easier in Laravel",
-  "type": "library",
-  "license": "MIT",
-  "authors": [
-    {
-      "role": "Developer",
-      "name": "SmartDato",
-      "email": "info@smart-dato.com",
-      "homepage": "https://smart-dato.com"
-    }
-  ],
-  "autoload": {
-    "psr-4": {
-      "SmartDato\\Labelary\\": "src/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "SmartDato\\Labelary\\Tests\\": "tests/"
-    }
-  },
-  "extra": {
-    "laravel": {
-      "providers": [
-        "SmartDato\\Labelary\\Providers\\LabelaryServiceProvider"
-      ],
-      "aliases": {
-        "Labelary": "SmartDato\\Labelary\\Facades\\Labelary"
-      }
-    }
-  },
-  "require": {
-    "php": "^8.1|^8.2|^8.3|^8.4|^8.5",
-    "guzzlehttp/guzzle": "^7.5",
-    "illuminate/support": "^9.0|^10.0|^11.0|^12.0"
-  },
-  "require-dev": {
-    "laravel/pint": "^1.14",
-    "nunomaduro/collision": "^8.1.1||^7.10.0",
-    "larastan/larastan": "^2.9||^3.0",
-    "orchestra/testbench": "^10.0.0||^9.0.0||^8.22.0",
-    "pestphp/pest": "^3.0",
-    "pestphp/pest-plugin-arch": "^3.0",
-    "pestphp/pest-plugin-laravel": "^3.0",
-    "phpstan/extension-installer": "^1.3||^2.0",
-    "phpstan/phpstan-deprecation-rules": "^1.1||^2.0",
-    "phpstan/phpstan-phpunit": "^1.3||^2.0",
-    "spatie/laravel-ray": "^1.35"
-  },
-  "scripts": {
-    "post-autoload-dump": "@composer run prepare",
-    "clear": "@php vendor/bin/testbench package:purge-localazy --ansi",
-    "prepare": "@php vendor/bin/testbench package:discover --ansi",
-    "build": [
-      "@composer run prepare",
-      "@php vendor/bin/testbench workbench:build --ansi"
+    "name": "smart-dato/labelary",
+    "description": "A http client to make working with Labelary easier in Laravel",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "role": "Developer",
+            "name": "SmartDato",
+            "email": "info@smart-dato.com",
+            "homepage": "https://smart-dato.com"
+        }
     ],
-    "start": [
-      "Composer\\Config::disableProcessTimeout",
-      "@composer run build",
-      "@php vendor/bin/testbench serve"
-    ],
-    "analyse": "vendor/bin/phpstan analyse",
-    "test": "vendor/bin/pest",
-    "test-coverage": "vendor/bin/pest --coverage",
-    "format": "vendor/bin/pint"
-  },
-  "minimum-stability": "dev",
-  "prefer-stable": true,
-  "config": {
-    "sort-packages": true,
-    "preferred-install": "dist",
-    "optimize-autoloader": true,
-    "allow-plugins": {
-      "pestphp/pest-plugin": true,
-      "phpstan/extension-installer": true
+    "autoload": {
+        "psr-4": {
+            "SmartDato\\Labelary\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SmartDato\\Labelary\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SmartDato\\Labelary\\Providers\\LabelaryServiceProvider"
+            ],
+            "aliases": {
+                "Labelary": "SmartDato\\Labelary\\Facades\\Labelary"
+            }
+        }
+    },
+    "require": {
+        "php": "^8.1|^8.2|^8.3|^8.4|^8.5",
+        "guzzlehttp/guzzle": "^7.5",
+        "illuminate/support": "^9.0|^10.0|^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.14",
+        "nunomaduro/collision": "^8.1.1||^7.10.0",
+        "larastan/larastan": "^2.9||^3.0",
+        "orchestra/testbench": "^10.0.0||^9.0.0||^8.22.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-arch": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "phpstan/extension-installer": "^1.3||^2.0",
+        "phpstan/phpstan-deprecation-rules": "^1.1||^2.0",
+        "phpstan/phpstan-phpunit": "^1.3||^2.0",
+        "spatie/laravel-ray": "^1.35"
+    },
+    "scripts": {
+        "post-autoload-dump": "@composer run prepare",
+        "clear": "@php vendor/bin/testbench package:purge-localazy --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": [
+            "@composer run prepare",
+            "@php vendor/bin/testbench workbench:build --ansi"
+        ],
+        "start": [
+            "Composer\\Config::disableProcessTimeout",
+            "@composer run build",
+            "@php vendor/bin/testbench serve"
+        ],
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
     }
-  }
 }
