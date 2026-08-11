@@ -1,5 +1,9 @@
 <?php
 
+use SmartDato\Labelary\Services\BarcodeFont;
+use SmartDato\Labelary\Services\BarcodeMode;
+use SmartDato\Labelary\Services\BarcodeOption;
+use SmartDato\Labelary\Services\BarcodeTextPosition;
 use SmartDato\Labelary\Services\BarcodeType;
 use SmartDato\Labelary\Services\Labelary;
 
@@ -35,4 +39,23 @@ test('can generate different barcode types', function () {
 
     expect($qrCode)->not()->toBeNull()
         ->and($code39)->not()->toBeNull();
+});
+
+test('can generate barcode with additional options', function () {
+    // Skip if LABELARY_API_KEY is not set in environment
+    $apiKey = getenv('LABELARY_API_KEY');
+    if (!$apiKey) {
+        expect(true)->toBeTrue(); // Skip gracefully
+        return;
+    }
+
+    $barcode = Labelary::generateBarcode('[01]12345678901234', BarcodeType::CODE128, $apiKey, null, [
+        BarcodeOption::MODE => BarcodeMode::GS1,
+        BarcodeOption::XDIM => 3,
+        BarcodeOption::TEXT_POSITION => BarcodeTextPosition::ABOVE,
+        BarcodeOption::FONT => BarcodeFont::OCRB,
+        BarcodeOption::ROTATION => null,
+    ]);
+
+    expect($barcode)->not()->toBeNull();
 });

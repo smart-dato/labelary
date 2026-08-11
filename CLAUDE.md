@@ -89,15 +89,25 @@ The package uses a singleton pattern for the main `Labelary` service (src/Servic
 
 ### Configuration Classes
 
-Three constant-only classes define valid API parameters:
-- `LabelaryType`: Defines output MIME types (PNG or PDF) for ZPL conversion
-- `LabelaryDensity`: Defines valid print densities (6dpmm, 8dpmm, 12dpmm, 24dpmm) for ZPL conversion
-- `BarcodeType`: Defines supported barcode types (code128, code39, ean13, ean8, upca, upce, qr, datamatrix)
+Constant-only classes define the valid API parameters:
+- `LabelaryType`: Output MIME types sent as the Accept header (PNG, PDF, JSON, ZPL, IPL, EPL, DPL, SBPL, PCL5, PCL6)
+- `LabelaryDensity`: Print densities (6dpmm, 8dpmm, 12dpmm, 24dpmm)
+- `LabelaryRotation`, `LabelaryPageSize`, `LabelaryPageOrientation`, `LabelaryPageAlign`, `LabelaryBorder`, `LabelaryQuality`: Values for the advanced request headers
+- `BarcodeType`: All barcode symbologies supported by the barcode API
+- `BarcodeOption`: Barcode query parameter names, with `BarcodeMode`, `BarcodeTextPosition` and `BarcodeFont` for their values
+
+### Advanced Request Headers
+
+Conversion options are set on the instance (`setRotation()`, `setQuality()`, `setPageSize()`, `setPageOrientation()`, `setPageLayout()`, `setPageAlign()`, `setPageVerticalAlign()`, `setLabelBorder()`, `setLinter()`, `setFormatter()`, `setTargetDpmm()`) and translated into `X-*` headers by `requestHeaders()`.
+
+Headers are filtered by output type, because the API rejects headers that do not apply: page and border headers are PDF only, `X-Quality` is PNG only, `X-Formatter` and `X-Target-Dpmm` are ZPL only, while `X-Rotation` and `X-Linter` are sent for every type.
+
+The response headers of the last conversion are exposed through `totalCount()` (`X-Total-Count`) and `warnings()` (`X-Warnings`, parsed by the static `parseWarnings()` into 5 attributes per warning).
 
 ### Laravel Integration
 
 The package auto-registers via Laravel's package discovery:
-- ServiceProvider (src/Providers/LabelaryServiceProvider.php) binds `'labelary'` to the service container
+- ServiceProvider (src/Providers/LabelaryServiceProvider.php) binds `'labelary'` as a singleton resolving to `Labelary::getInstance()`, so the facade and the static methods share one instance and options set through the facade survive until the next conversion
 - Facade (src/Facades/Labelary.php) provides static access via `\Labelary::convert()`
 
 ### API URL Structure
@@ -141,9 +151,14 @@ The API key is added as a query parameter (`?key=...`) to the POST request when 
 $barcode = Labelary::generateBarcode('12345678', BarcodeType::CODE128);
 // Or with explicit API key:
 $barcode = Labelary::generateBarcode('12345678', BarcodeType::QR, 'your-api-key');
+// Or with additional barcode parameters:
+$barcode = Labelary::generateBarcode('12345678', BarcodeType::QR, null, null, [
+    BarcodeOption::XDIM => 3,
+    BarcodeOption::TEXT_POSITION => BarcodeTextPosition::NONE,
+]);
 ```
 
-The barcode method returns null if the API key is not configured or if the request fails.
+The barcode method returns null if the API key is not configured or if the request fails. Option values that are null are dropped, and unknown option keys are passed through so new API parameters can be used before they are added to `BarcodeOption`.
 
 ## Test Resources
 

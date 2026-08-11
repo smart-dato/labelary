@@ -40,6 +40,33 @@ class Labelary
 
     private ?string $host = null;
 
+    private ?int $rotation = null;
+
+    private ?string $pageSize = null;
+
+    private ?string $pageOrientation = null;
+
+    private ?string $pageLayout = null;
+
+    private ?string $pageAlign = null;
+
+    private ?string $pageVerticalAlign = null;
+
+    private ?string $labelBorder = null;
+
+    private ?string $quality = null;
+
+    private ?bool $linter = null;
+
+    private ?bool $formatter = null;
+
+    private ?int $targetDpmm = null;
+
+    private ?int $totalCount = null;
+
+    /** @var array<int, array{index: int, size: int, command: string, parameter: int|null, message: string}> */
+    private array $warnings = [];
+
     private static ?Labelary $instance = null;
 
     public static function getInstance(): Labelary
@@ -147,6 +174,33 @@ class Labelary
     }
 
     /**
+     * Extract the labels and their data fields as JSON.
+     *
+     * @param  string  $zpl  The ZPL code to extract data from
+     * @param  string|null  $apiKey  Optional API key for authenticated requests
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
+     * @return string|null  The JSON data
+     */
+    public static function convertToJson(string $zpl, ?string $apiKey = null, ?string $host = null): ?string
+    {
+        return self::convert($zpl, LabelaryType::JSON, $apiKey, $host);
+    }
+
+    /**
+     * Transform ZPL into ZPL, applying the formatter, rotation and target print
+     * density that are set on the instance.
+     *
+     * @param  string  $zpl  The ZPL code to transform
+     * @param  string|null  $apiKey  Optional API key for authenticated requests
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
+     * @return string|null  The transformed ZPL
+     */
+    public static function transformZpl(string $zpl, ?string $apiKey = null, ?string $host = null): ?string
+    {
+        return self::convert($zpl, LabelaryType::ZPL, $apiKey, $host);
+    }
+
+    /**
      * The base URL of the label conversion endpoint, for the given (or configured) host.
      *
      * @param  string|null  $host
@@ -177,10 +231,13 @@ class Labelary
      */
     private function request(string $url, string $zpl, string $type): ?string
     {
+        $this->totalCount = null;
+        $this->warnings = [];
+
         $client = new Client(['base_uri' => self::baseUrl($this->host)]);
         try {
             $options = [
-                'headers' => ['Accept' => $type],
+                'headers' => ['Accept' => $type] + $this->requestHeaders($type),
                 'body' => $zpl,
             ];
 
@@ -190,6 +247,10 @@ class Labelary
             }
 
             $response = $client->request('POST', $url, $options);
+
+            $totalCount = $response->getHeaderLine('X-Total-Count');
+            $this->totalCount = $totalCount === '' ? null : (int) $totalCount;
+            $this->warnings = self::parseWarnings($response->getHeaderLine('X-Warnings'));
 
             return $response->getBody()->getContents();
         } catch (Exception $e) {
@@ -270,16 +331,265 @@ class Labelary
     }
 
     /**
+     * The number of degrees to rotate the label clockwise, see LabelaryRotation.
+     * Applies to images and to ZPL transformation.
+     *
+     * @param  int|null  $degrees
+     * @return Labelary
+     */
+    public function setRotation(?int $degrees): Labelary
+    {
+        $this->rotation = $degrees;
+
+        return $this;
+    }
+
+    /**
+     * The PDF page size, see LabelaryPageSize. Defaults to the label size.
+     *
+     * @param  string|null  $pageSize
+     * @return Labelary
+     */
+    public function setPageSize(?string $pageSize): Labelary
+    {
+        $this->pageSize = $pageSize;
+
+        return $this;
+    }
+
+    /**
+     * The orientation of the PDF page size, see LabelaryPageOrientation.
+     *
+     * @param  string|null  $pageOrientation
+     * @return Labelary
+     */
+    public function setPageOrientation(?string $pageOrientation): Labelary
+    {
+        $this->pageOrientation = $pageOrientation;
+
+        return $this;
+    }
+
+    /**
+     * The tabular layout of the labels on a PDF page, in "<columns>x<rows>"
+     * format, e.g. "2x3" for 6 labels per page.
+     *
+     * @param  string|null  $pageLayout
+     * @return Labelary
+     */
+    public function setPageLayout(?string $pageLayout): Labelary
+    {
+        $this->pageLayout = $pageLayout;
+
+        return $this;
+    }
+
+    /**
+     * The horizontal alignment of the labels on a PDF page, see LabelaryPageAlign.
+     *
+     * @param  string|null  $pageAlign
+     * @return Labelary
+     */
+    public function setPageAlign(?string $pageAlign): Labelary
+    {
+        $this->pageAlign = $pageAlign;
+
+        return $this;
+    }
+
+    /**
+     * The vertical alignment of the labels on a PDF page, see LabelaryPageAlign.
+     *
+     * @param  string|null  $pageVerticalAlign
+     * @return Labelary
+     */
+    public function setPageVerticalAlign(?string $pageVerticalAlign): Labelary
+    {
+        $this->pageVerticalAlign = $pageVerticalAlign;
+
+        return $this;
+    }
+
+    /**
+     * The border drawn around each label on a PDF page, see LabelaryBorder.
+     *
+     * @param  string|null  $labelBorder
+     * @return Labelary
+     */
+    public function setLabelBorder(?string $labelBorder): Labelary
+    {
+        $this->labelBorder = $labelBorder;
+
+        return $this;
+    }
+
+    /**
+     * The print quality of generated images, see LabelaryQuality.
+     *
+     * @param  string|null  $quality
+     * @return Labelary
+     */
+    public function setQuality(?string $quality): Labelary
+    {
+        $this->quality = $quality;
+
+        return $this;
+    }
+
+    /**
+     * Check the ZPL for potential errors while rendering it. Warnings are
+     * available through warnings() once the conversion has run.
+     *
+     * @param  bool|null  $linter
+     * @return Labelary
+     */
+    public function setLinter(?bool $linter): Labelary
+    {
+        $this->linter = $linter;
+
+        return $this;
+    }
+
+    /**
+     * Apply automated formatting to the input ZPL. Only used for ZPL transformation.
+     *
+     * @param  bool|null  $formatter
+     * @return Labelary
+     */
+    public function setFormatter(?bool $formatter): Labelary
+    {
+        $this->formatter = $formatter;
+
+        return $this;
+    }
+
+    /**
+     * Convert the input ZPL to another print density, e.g. to print ZPL designed
+     * for a 6dpmm printer on an 8dpmm printer. Only used for ZPL transformation.
+     * Accepts both 8 and LabelaryDensity::dpmm8.
+     *
+     * @param  int|string|null  $dpmm
+     * @return Labelary
+     */
+    public function setTargetDpmm(int|string|null $dpmm): Labelary
+    {
+        $this->targetDpmm = $dpmm === null ? null : (int) $dpmm;
+
+        return $this;
+    }
+
+    /**
+     * The number of labels generated by the last conversion, regardless of how
+     * many of them were rendered. Null if the last conversion failed.
+     *
+     * @return int|null
+     */
+    public function totalCount(): ?int
+    {
+        return $this->totalCount;
+    }
+
+    /**
+     * The linter warnings of the last conversion, if the linter was enabled.
+     * Labelary returns at most 20 warnings.
+     *
+     * @return array<int, array{index: int, size: int, command: string, parameter: int|null, message: string}>
+     */
+    public function warnings(): array
+    {
+        return $this->warnings;
+    }
+
+    /**
+     * Parse the pipe-delimited X-Warnings response header, which holds 5
+     * attributes per warning.
+     *
+     * @param  string  $header
+     * @return array<int, array{index: int, size: int, command: string, parameter: int|null, message: string}>
+     */
+    public static function parseWarnings(string $header): array
+    {
+        if (trim($header) === '') {
+            return [];
+        }
+
+        $warnings = [];
+
+        foreach (array_chunk(explode('|', $header), 5) as $attributes) {
+            if (count($attributes) < 5) {
+                continue;
+            }
+
+            $warnings[] = [
+                'index' => (int) $attributes[0],
+                'size' => (int) $attributes[1],
+                'command' => $attributes[2],
+                'parameter' => $attributes[3] === '' ? null : (int) $attributes[3],
+                'message' => $attributes[4],
+            ];
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * The advanced request headers that apply to the requested output type.
+     *
+     * @param  string  $type
+     * @return array<string, string>
+     */
+    private function requestHeaders(string $type): array
+    {
+        $headers = [];
+
+        if ($this->rotation !== null) {
+            $headers['X-Rotation'] = (string) $this->rotation;
+        }
+
+        if ($this->linter !== null) {
+            $headers['X-Linter'] = $this->linter ? 'On' : 'Off';
+        }
+
+        if ($type === LabelaryType::PDF) {
+            $headers += array_filter([
+                'X-Page-Size' => $this->pageSize,
+                'X-Page-Orientation' => $this->pageOrientation,
+                'X-Page-Layout' => $this->pageLayout,
+                'X-Page-Align' => $this->pageAlign,
+                'X-Page-Vertical-Align' => $this->pageVerticalAlign,
+                'X-Label-Border' => $this->labelBorder,
+            ], fn (?string $value): bool => $value !== null);
+        }
+
+        if ($type === LabelaryType::PNG && $this->quality !== null) {
+            $headers['X-Quality'] = $this->quality;
+        }
+
+        if ($type === LabelaryType::ZPL) {
+            if ($this->formatter !== null) {
+                $headers['X-Formatter'] = $this->formatter ? 'On' : 'Off';
+            }
+
+            if ($this->targetDpmm !== null) {
+                $headers['X-Target-Dpmm'] = (string) $this->targetDpmm;
+            }
+        }
+
+        return $headers;
+    }
+
+    /**
      * Generate a barcode using the Labelary barcode API
      *
      * @param  string  $data  The data to encode in the barcode
      * @param  string  $type  The barcode type (use BarcodeType constants)
      * @param  string|null  $apiKey  Optional API key (uses config if not provided)
      * @param  string|null  $host  Optional API host (premium plans use a private hostname)
+     * @param  array<string, string|int|float|null>  $options  Additional barcode parameters (use BarcodeOption constants)
      * @return string|null  The barcode image as PNG
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public static function generateBarcode(string $data, string $type = BarcodeType::CODE128, ?string $apiKey = null, ?string $host = null): ?string
+    public static function generateBarcode(string $data, string $type = BarcodeType::CODE128, ?string $apiKey = null, ?string $host = null, array $options = []): ?string
     {
         // Try to get API key from config if not provided
         if (!$apiKey) {
@@ -294,12 +604,14 @@ class Labelary
 
         $client = new Client();
         try {
+            $query = array_filter($options, fn (string|int|float|null $value): bool => $value !== null);
+
             $response = $client->request('GET', self::barcodeUrl($host), [
-                'query' => [
+                'query' => array_merge($query, [
                     'key' => $apiKey,
                     'type' => $type,
                     'data' => $data,
-                ],
+                ]),
             ]);
 
             return $response->getBody()->getContents();

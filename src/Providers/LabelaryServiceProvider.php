@@ -14,8 +14,10 @@ class LabelaryServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->bind('labelary', function ($app) {
-            return new Labelary();
+        // The static methods work through the same singleton, so that options set
+        // through the facade are applied to subsequent conversions
+        $this->app->singleton('labelary', function ($app) {
+            return Labelary::getInstance();
         });
     }
 
