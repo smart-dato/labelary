@@ -5,15 +5,28 @@ namespace SmartDato\Labelary\Services;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * @link http://labelary.com/service.html
  */
 class Labelary
 {
-    public const BASE_URL = 'http://api.labelary.com/v1/printers/';
+    /**
+     * The shared API host used by the free plan. Premium and On-Prem plans
+     * receive their own private hostname upon sign-up.
+     *
+     * @link https://labelary.com/service.html#pricing
+     */
+    public const DEFAULT_HOST = 'api.labelary.com';
 
-    public const BARCODE_URL = 'https://api.labelary.com/v1/barcodes';
+    public const PRINTERS_PATH = '/v1/printers/';
+
+    public const BARCODES_PATH = '/v1/barcodes';
+
+    public const BASE_URL = 'https://'.self::DEFAULT_HOST.self::PRINTERS_PATH;
+
+    public const BARCODE_URL = 'https://'.self::DEFAULT_HOST.self::BARCODES_PATH;
 
     private string $dpmm;
 
@@ -24,6 +37,8 @@ class Labelary
     private ?int $index;
 
     private ?string $apiKey = null;
+
+    private ?string $host = null;
 
     private static ?Labelary $instance = null;
 
@@ -75,51 +90,82 @@ class Labelary
      * @param  string  $zpl  The ZPL code to convert
      * @param  string|null  $type  The output type (PNG or PDF)
      * @param  string|null  $apiKey  Optional API key for authenticated requests
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
      * @return string|null  The converted image/PDF data
      */
-    public static function convert(string $zpl, ?string $type = null, ?string $apiKey = null): ?string
+    public static function convert(string $zpl, ?string $type = null, ?string $apiKey = null, ?string $host = null): ?string
     {
         $instance = self::getInstance();
 
         // Set API key if provided
         if ($apiKey) {
             $instance->apiKey = $apiKey;
-        } elseif (!$instance->apiKey && function_exists('config')) {
-            try {
-                $configKey = config('labelary.api_key');
-                if (is_string($configKey)) {
-                    $instance->apiKey = $configKey;
-                }
-            } catch (Exception $e) {
-                // Config not available
-            }
+        } elseif (!$instance->apiKey) {
+            $instance->apiKey = self::configString('labelary.api_key');
         }
 
-        $url = "{$instance->dpmm}/labels/{$instance->width}x{$instance->height}";
-        if ($instance->index) {
-            $url .= "/{$instance->index}/";
+        // Set API host if provided
+        if ($host) {
+            $instance->host = $host;
+        } elseif (!$instance->host) {
+            $instance->host = self::configString('labelary.host');
         }
-        return $instance->request($url, $zpl, $type ?? LabelaryType::PNG);
+
+        $type = $type ?? LabelaryType::PNG;
+
+        // The index may only be omitted for PDF documents, which then contain all labels
+        $index = $instance->index ?? ($type === LabelaryType::PDF ? null : 0);
+
+        $url = "{$instance->dpmm}/labels/{$instance->width}x{$instance->height}/";
+        if ($index !== null) {
+            $url .= "{$index}/";
+        }
+
+        return $instance->request($url, $zpl, $type);
     }
 
     /**
      * @param  string  $zpl  The ZPL code to convert
      * @param  string|null  $apiKey  Optional API key for authenticated requests
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
      * @return string|null  The PDF data
      */
-    public static function convertToPdf(string $zpl, ?string $apiKey = null): ?string
+    public static function convertToPdf(string $zpl, ?string $apiKey = null, ?string $host = null): ?string
     {
-        return self::convert($zpl, LabelaryType::PDF, $apiKey);
+        return self::convert($zpl, LabelaryType::PDF, $apiKey, $host);
     }
 
     /**
      * @param  string  $zpl  The ZPL code to convert
      * @param  string|null  $apiKey  Optional API key for authenticated requests
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
      * @return string|null  The PNG data
      */
-    public static function convertToPng(string $zpl, ?string $apiKey = null): ?string
+    public static function convertToPng(string $zpl, ?string $apiKey = null, ?string $host = null): ?string
     {
-        return self::convert($zpl, LabelaryType::PNG, $apiKey);
+        return self::convert($zpl, LabelaryType::PNG, $apiKey, $host);
+    }
+
+    /**
+     * The base URL of the label conversion endpoint, for the given (or configured) host.
+     *
+     * @param  string|null  $host
+     * @return string
+     */
+    public static function baseUrl(?string $host = null): string
+    {
+        return self::resolveHost($host).self::PRINTERS_PATH;
+    }
+
+    /**
+     * The URL of the barcode endpoint, for the given (or configured) host.
+     *
+     * @param  string|null  $host
+     * @return string
+     */
+    public static function barcodeUrl(?string $host = null): string
+    {
+        return self::resolveHost($host).self::BARCODES_PATH;
     }
 
     /**
@@ -131,7 +177,7 @@ class Labelary
      */
     private function request(string $url, string $zpl, string $type): ?string
     {
-        $client = new Client(['base_uri' => self::BASE_URL]);
+        $client = new Client(['base_uri' => self::baseUrl($this->host)]);
         try {
             $options = [
                 'headers' => ['Accept' => $type],
@@ -147,13 +193,7 @@ class Labelary
 
             return $response->getBody()->getContents();
         } catch (Exception $e) {
-            try {
-                if (class_exists('Illuminate\Support\Facades\Log')) {
-                    Log::error($e);
-                }
-            } catch (Exception $logException) {
-                // Log not available, continue silently
-            }
+            self::log($e);
         }
 
         return null;
@@ -215,44 +255,46 @@ class Labelary
     }
 
     /**
+     * The API host to send requests to. Free plans use the shared host, while
+     * premium plans receive a private hostname upon sign-up. Bare hostnames
+     * are served over HTTPS unless a scheme is included.
+     *
+     * @param  string|null  $host
+     * @return Labelary
+     */
+    public function setHost(?string $host): Labelary
+    {
+        $this->host = $host;
+
+        return $this;
+    }
+
+    /**
      * Generate a barcode using the Labelary barcode API
      *
      * @param  string  $data  The data to encode in the barcode
      * @param  string  $type  The barcode type (use BarcodeType constants)
      * @param  string|null  $apiKey  Optional API key (uses config if not provided)
+     * @param  string|null  $host  Optional API host (premium plans use a private hostname)
      * @return string|null  The barcode image as PNG
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public static function generateBarcode(string $data, string $type = BarcodeType::CODE128, ?string $apiKey = null): ?string
+    public static function generateBarcode(string $data, string $type = BarcodeType::CODE128, ?string $apiKey = null, ?string $host = null): ?string
     {
         // Try to get API key from config if not provided
         if (!$apiKey) {
-            try {
-                if (function_exists('config')) {
-                    $configKey = config('labelary.api_key');
-                    if (is_string($configKey)) {
-                        $apiKey = $configKey;
-                    }
-                }
-            } catch (Exception $e) {
-                // Config not available, will return null below
-            }
+            $apiKey = self::configString('labelary.api_key');
         }
 
         if (!$apiKey) {
-            try {
-                if (class_exists('Illuminate\Support\Facades\Log')) {
-                    Log::error('Labelary API key not configured');
-                }
-            } catch (Exception $e) {
-                // Log not available, continue silently
-            }
+            self::log('Labelary API key not configured');
+
             return null;
         }
 
         $client = new Client();
         try {
-            $response = $client->request('GET', self::BARCODE_URL, [
+            $response = $client->request('GET', self::barcodeUrl($host), [
                 'query' => [
                     'key' => $apiKey,
                     'type' => $type,
@@ -262,15 +304,72 @@ class Labelary
 
             return $response->getBody()->getContents();
         } catch (Exception $e) {
-            try {
-                if (class_exists('Illuminate\Support\Facades\Log')) {
-                    Log::error($e);
-                }
-            } catch (Exception $logException) {
-                // Log not available, continue silently
-            }
+            self::log($e);
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the host to send requests to, falling back to the configured
+     * host and finally to the shared host used by the free plan.
+     *
+     * @param  string|null  $host
+     * @return string
+     */
+    private static function resolveHost(?string $host = null): string
+    {
+        $host = $host ?? self::configString('labelary.host') ?? self::DEFAULT_HOST;
+
+        $host = rtrim(trim($host), '/');
+
+        if ($host === '') {
+            $host = self::DEFAULT_HOST;
+        }
+
+        if (!preg_match('#^[a-z][a-z0-9+.-]*://#i', $host)) {
+            $host = "https://{$host}";
+        }
+
+        return $host;
+    }
+
+    /**
+     * @param  string  $key
+     * @return string|null
+     */
+    private static function configString(string $key): ?string
+    {
+        if (!function_exists('config')) {
+            return null;
+        }
+
+        try {
+            $value = config($key);
+        } catch (Throwable $e) {
+            // Config not available outside of a Laravel application
+            return null;
+        }
+
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  string|Throwable  $message
+     * @return void
+     */
+    private static function log(string|Throwable $message): void
+    {
+        try {
+            if (class_exists('Illuminate\Support\Facades\Log')) {
+                Log::error($message);
+            }
+        } catch (Throwable $e) {
+            // Log not available, continue silently
+        }
     }
 }

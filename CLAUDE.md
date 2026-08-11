@@ -25,6 +25,25 @@ LABELARY_API_KEY=your-api-key-here
 
 The API key is required for barcode generation features. ZPL to image conversion can work without an API key, but optionally supports authenticated requests if an API key is provided.
 
+### API Host Setup (Plans and Pricing)
+Labelary's free plan uses the shared host `api.labelary.com` and requires no sign-up. Premium (Plus/Business) and On-Prem plans get a private API hostname plus an API key via email; switching plans means pointing the client at that hostname and sending the key (https://labelary.com/service.html#pricing).
+
+Set the host via the `LABELARY_API_HOST` environment variable:
+```
+LABELARY_API_HOST=your-private-host.labelary.com
+```
+
+A bare hostname (optionally with a port) is called over HTTPS. Prefix it with a scheme to override that, e.g. `http://labelary.local:8080` for an on-premise server. The host can also be passed per call or set on the instance:
+
+```php
+$png = Labelary::convertToPng($zpl, 'your-api-key', 'your-private-host.labelary.com');
+$barcode = Labelary::generateBarcode('12345678', BarcodeType::QR, 'your-api-key', 'your-private-host.labelary.com');
+
+Labelary::getInstance()->setHost('your-private-host.labelary.com');
+```
+
+`Labelary::baseUrl()` and `Labelary::barcodeUrl()` return the resolved endpoint URLs (explicit host → `config('labelary.host')` → `api.labelary.com`).
+
 ## Common Commands
 
 ### Testing
@@ -61,10 +80,10 @@ composer start
 
 ### Core Service Pattern
 
-The package uses a singleton pattern for the main `Labelary` service (src/Services/Labelary.php:28-35). This service:
-- Maintains instance state for label dimensions (width, height), print density (dpmm), label index, and optional API key
+The package uses a singleton pattern for the main `Labelary` service (src/Services/Labelary.php). This service:
+- Maintains instance state for label dimensions (width, height), print density (dpmm), label index, optional API key, and optional API host
 - Provides static methods `convert()`, `convertToPng()`, and `convertToPdf()` that work through the singleton
-- Makes HTTP POST requests to the Labelary API endpoint (http://api.labelary.com/v1/printers/)
+- Makes HTTP POST requests to the Labelary API endpoint (https://api.labelary.com/v1/printers/ by default)
 - Supports both authenticated (with API key) and unauthenticated requests for ZPL conversion
 - API key can be passed explicitly or read from config
 
@@ -89,7 +108,7 @@ Example: `8dpmm/labels/4x6/0/` for 8dpmm density, 4x6 inch label, first label (i
 
 ### Multi-Label Support
 
-The `index` parameter (base-0) allows accessing specific labels when ZPL generates multiple labels. When requesting PDFs without an index, all labels are returned (one per page).
+The `index` parameter (base-0) allows accessing specific labels when ZPL generates multiple labels. The index may only be omitted for PDF requests, which then return all labels (one per page); image requests without an explicit index default to index 0.
 
 ### API Key Support
 
@@ -113,7 +132,7 @@ $pdf = Labelary::convert($zplCode, LabelaryType::PDF, 'your-api-key');
 The API key is added as a query parameter (`?key=...`) to the POST request when provided.
 
 **Barcode Generation:**
-- Endpoint: `https://api.labelary.com/v1/barcodes`
+- Endpoint: `https://api.labelary.com/v1/barcodes` (host configurable, see API Host Setup)
 - Method: GET with query parameters
 - Authentication: Requires API key (configured in config/labelary.php)
 - Returns: PNG image data
