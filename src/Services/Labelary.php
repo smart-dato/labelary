@@ -4,6 +4,7 @@ namespace SmartDato\Labelary\Services;
 
 use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -12,6 +13,35 @@ use Throwable;
  */
 class Labelary
 {
+    /**
+     * A Guzzle handler to route requests through, set by the test suite so the
+     * API can be replayed from fixtures instead of called over the network.
+     *
+     * @var callable|null
+     */
+    private static $handler = null;
+
+    /**
+     * Route every request through the given Guzzle handler. Pass null to
+     * restore normal network behaviour.
+     */
+    public static function useHandler(?callable $handler): void
+    {
+        self::$handler = $handler;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    private static function newClient(array $config = []): Client
+    {
+        if (self::$handler !== null) {
+            $config['handler'] = HandlerStack::create(self::$handler);
+        }
+
+        return new Client($config);
+    }
+
     /**
      * The shared API host used by the free plan. Premium and On-Prem plans
      * receive their own private hostname upon sign-up.
@@ -234,7 +264,7 @@ class Labelary
         $this->totalCount = null;
         $this->warnings = [];
 
-        $client = new Client(['base_uri' => self::baseUrl($this->host)]);
+        $client = self::newClient(['base_uri' => self::baseUrl($this->host)]);
         try {
             $options = [
                 'headers' => ['Accept' => $type] + $this->requestHeaders($type),
@@ -602,7 +632,7 @@ class Labelary
             return null;
         }
 
-        $client = new Client();
+        $client = self::newClient();
         try {
             $query = array_filter($options, fn (string|int|float|null $value): bool => $value !== null);
 

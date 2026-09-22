@@ -1,0 +1,12 @@
+{
+    "status": 200,
+    "headers": {
+        "Content-Type": [
+            "application\/json"
+        ],
+        "X-Total-Count": [
+            "1"
+        ]
+    },
+    "body": "eyJsYWJlbHMiOlt7ImZpZWxkcyI6W3sieCI6NTAsInkiOjUwLCJkYXRhIjoiRmllbGQgMSJ9XX1dfQ=="
+}
