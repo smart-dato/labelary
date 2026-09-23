@@ -1,8 +1,11 @@
 # Labelary Client
 
-this repo contains the code for a simple laravel client to convert ZPL files into png/jpg
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/smart-dato/labelary.svg?style=flat-square)](https://packagist.org/packages/smart-dato/labelary)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/smart-dato/labelary/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/smart-dato/labelary/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/smart-dato/labelary/code-style.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/smart-dato/labelary/actions?query=workflow%3A%22Code+style%22+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/smart-dato/labelary.svg?style=flat-square)](https://packagist.org/packages/smart-dato/labelary)
 
-To do that we use the site [Labelary](http://labelary.com/). We wrote a wrapper for Laravel to interact with their API. There site offers a lot more please check it out.
+A Laravel client for the [Labelary](https://labelary.com/) API: render ZPL to PNG or PDF, lint ZPL, and generate barcodes. Labelary offers a lot more — check it out.
 
 ## Configuration
 
@@ -101,3 +104,32 @@ $barcode = Labelary::generateBarcode('[01]12345678901234', BarcodeType::CODE128,
 ```
 
 Unknown option keys are passed through, so parameters that Labelary adds later can be used right away.
+
+## Testing
+
+```bash
+composer test
+```
+
+The suite replays recorded Labelary responses, so it runs offline. To re-record them against the live API:
+
+```bash
+LABELARY_RECORD=1 vendor/bin/pest
+```
+
+## Changelog
+
+Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+
+## Security Vulnerabilities
+
+Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+
+## Credits
+
+- [SmartDato](https://github.com/smart-dato)
+- [All Contributors](../../contributors)
+
+## License
+
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
